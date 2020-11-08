@@ -1,0 +1,3 @@
+#!/bin/sh
+
+column -t DASHBOARDS > .DASHBOARDS && mv .DASHBOARDS DASHBOARDS

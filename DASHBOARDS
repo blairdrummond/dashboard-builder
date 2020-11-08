@@ -1,0 +1,4 @@
+#Application   Type   Commit   Github-User                   SHA256
+bus-dashboard  shiny  3c8bb32  blairdrummond/s2i-shiny-test  8c3a839483a3ae7af5fc02bbb78138c75bdc07442ccfa46775603dd76fbf0440
+dash-example   dash   003abe4  blairdrummond/s2i-dash-test   5e58ec6289c59ae78d8e14bf373142efc2b3430767f53f44f2349d321973891d
+flask-example  dash   48d9205  blairdrummond/s2i-flask-test  d7043680f5a1e4b41643b2e31f89f1f42983f7edec243ea091b2a2cbd9790777

@@ -1,0 +1,20 @@
+#!/bin/bash -e
+# The run script executes the server that runs your application.
+#
+# For more information see the documentation:
+#	https://github.com/openshift/source-to-image/blob/master/docs/builder_image.md
+#
+
+# We will turn off daemonizing for the nginx process so that the container
+# doesn't exit after the process runs.
+
+[ -d app ] && cd app
+
+if [ ! -f app.py ]; then
+    echo "app.py or app/app.py not found. Exiting." >&2
+    exit 1
+fi
+
+source ~/.bashrc
+conda activate $USER
+exec gunicorn -k egg:meinheld#gunicorn_worker app:app --bind 0.0.0.0:8000 -w 4
