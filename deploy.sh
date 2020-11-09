@@ -18,17 +18,9 @@
 # but if you add an argument, it will do
 # a subset instead. For instance
 #
-#     ./deploy.sh yaml
-#
-#  will ONLY build yaml
-#
-#     ./deploy.sh build
-#
-#  will ONLY build
-#
-#     ./deploy.sh push
-#
-#  will build AND push
+#     yaml  ->  YAML
+#     build ->  BUILD
+#     oush  ->  BUILD + PUSH
 #
 # author: blair drummond
 #
