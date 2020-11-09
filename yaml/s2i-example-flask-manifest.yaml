@@ -1,0 +1,85 @@
+---
+# Source: example-dashboard/templates/Metadata.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: s2i-example-flask
+  namespace: apps
+  labels:
+    app: s2i-example-flask
+data:
+  maintainer: blairdrummond
+  description: No Github description found.
+---
+# Source: example-dashboard/templates/Service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: s2i-example-flask
+  namespace: apps
+spec:
+  ports: 
+  - name: http-port
+    port: 80
+    targetPort: 8000
+  selector:
+    app: s2i-example-flask
+---
+# Source: example-dashboard/templates/Deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: s2i-example-flask
+  namespace: apps
+spec:
+  selector:
+    matchLabels:
+      app: s2i-example-flask
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: s2i-example-flask
+    spec:
+      
+      containers:
+      - name: s2i-example-flask
+        
+        image: blairdrummond/s2i-example-flask:48d9205
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+---
+# Source: example-dashboard/templates/Ingress.yaml
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: s2i-example-flask-ingress
+  namespace: apps
+  annotations:
+    kubernetes.io/ingress.class: "traefik"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/frontend-entry-points: http,https
+    traefik.ingress.kubernetes.io/redirect-entry-point: https
+    traefik.ingress.kubernetes.io/redirect-permanent: "true"
+spec:
+  rules:
+  - host: www.apps.happylittlecloud.ca
+    http:
+      paths:
+      - path: /s2i-example-flask
+        backend:
+          serviceName: s2i-example-flask
+          servicePort: 80
+  - host: apps.happylittlecloud.ca
+    http:
+      paths:
+      - path: /s2i-example-flask
+        backend:
+          serviceName: s2i-example-flask
+          servicePort: 80
+  tls:
+  - hosts:
+    - apps.happylittlecloud.ca
+    - www.apps.happylittlecloud.ca
+    secretName: s2i-example-flask-cert
