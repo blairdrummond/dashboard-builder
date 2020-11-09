@@ -30,8 +30,10 @@ get_commit_sha () {
     fi
 }
 
+COMMIT=$(get_commit_sha)
+
 # error handling for "main" branch name
-if ! { get_zip "$COMMIT" || get_zip main; }; then
+if ! get_zip "$COMMIT"; then
     echo "Error: Repo or Commit not found" >&2
     exit 1
 fi
@@ -41,6 +43,6 @@ cat <<EOF
 repo:
    path: $REPO
    url: https://github.com/$REPO
-   commit: $(get_commit_sha)
+   commit: $COMMIT
    zipsha: $(sha256sum $tmpfile | awk '{print $1}')
 EOF

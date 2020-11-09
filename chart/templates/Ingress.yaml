@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: {{ .Values.metadata.name }}-ingress
+  namespace: {{ .Values.namespace }}
+  annotations:
+    kubernetes.io/ingress.class: "traefik"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/frontend-entry-points: http,https
+    traefik.ingress.kubernetes.io/redirect-entry-point: https
+    traefik.ingress.kubernetes.io/redirect-permanent: "true"
+spec:
+  rules:
+  - host: www.{{ .Values.host }}
+    http:
+      paths:
+      - path: /{{ .Values.metadata.name }}
+        backend:
+          serviceName: {{ .Values.metadata.name }}
+          servicePort: {{ .Values.port }}
+  - host: {{ .Values.host }}
+    http:
+      paths:
+      - path: /{{ .Values.metadata.name }}
+        backend:
+          serviceName: {{ .Values.metadata.name }}
+          servicePort: {{ .Values.port }}
+  tls:
+  - hosts:
+    - {{ .Values.host }}
+    - www.{{ .Values.host }}
+    secretName: {{ .Values.metadata.name }}-cert

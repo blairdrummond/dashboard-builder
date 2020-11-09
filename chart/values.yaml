@@ -1,0 +1,16 @@
+namespace: apps
+
+metadata:
+  name: example-dashboard
+  maintainer: blairdrummond@protonmail.com
+  description: >-
+    A simple dashboard.
+    Basic shiny and/or dash app.
+
+image:
+  image: blairdrummond/bdrummond
+  imagePullPolicy: Always
+
+host: apps.happylittlecloud.ca
+port: 80
+targetPort: 8000

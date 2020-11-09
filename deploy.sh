@@ -1,9 +1,79 @@
 #!/usr/bin/env bash
-set -euo pipefail
+
+# Script to build and push docker images for
+# user submitted dashboards, and create the yaml
+# for them too.
+#
+#
+#
+#
+# usage:
+#
+#     $ export NAMESPACE=apps
+#     $ export REGISTRY=blairdrummond
+#     $ ./deploy.sh [ build | push | yaml ]
+#
+#
+# By default, ./deploy.sh does all three,
+# but if you add an argument, it will do
+# a subset instead. For instance
+#
+#     ./deploy.sh yaml
+#
+#  will ONLY build yaml
+#
+#     ./deploy.sh build
+#
+#  will ONLY build
+#
+#     ./deploy.sh push
+#
+#  will build AND push
+#
+# author: blair drummond
+#
+
+set -eo pipefail
 
 # docker login
+#trap "rm -rf .unpack .repo.zip" INT TERM HUP EXIT
 
-trap "rm -rf .unpack .repo.zip" INT TERM HUP EXIT
+REGISTRY=${REGISTRY:-blairdrummond}
+NAMESPACE=${NAMESPACE:-apps}
+
+# FALSE if ""
+# TRUE otherwise.
+BUILD="yes"
+PUSH="yes"
+YAML="yes"
+
+
+while test -n "$1"; do
+    case "$1" in
+        -n)
+            shift
+            NAMESPACE="$1"
+            ;;
+        -r)
+            shift
+            REGISTRY="$1"
+            ;;
+        yaml)
+            BUILD=""
+            PUSH=""
+            ;;
+        build)
+            PUSH=""
+            YAML=""
+            ;;
+        push)
+            YAML=""
+            ;;
+    esac
+    shift
+done
+
+
 
 #################################
 ###      Helper Functions     ###
@@ -13,10 +83,17 @@ trap "rm -rf .unpack .repo.zip" INT TERM HUP EXIT
 get_zip () {
     REPO="$1"
     COMMIT="$2"
+    SHA256="$3"
 
     echo wget -q "https://github.com/${REPO}/archive/${COMMIT}.zip" -O .repo.zip
     if ! wget -q "https://github.com/${REPO}/archive/${COMMIT}.zip" -O .repo.zip; then
         echo "Error: Repo or Commit not found" >&2
+        exit 1
+    fi
+
+    echo "Check Sha $REPO:$COMMIT"
+    if ! echo "$SHA256  .repo.zip" | sha256sum -c - ; then
+        echo "Check of ${NAME} failed. Exiting." >&2
         exit 1
     fi
 }
@@ -45,28 +122,50 @@ validate_build_push () {
     # Create the s2i-builder. (if it doesn't already exist)
     (cd $DOCKERFILE; docker build . -t "${TYPE}-s2i-builder")
 
-    # Get & validate the zip
-    get_zip "$REPO" "$COMMIT"
+    # Get & validate the zip (.repo.zip)
+    get_zip "$REPO" "$COMMIT" "$SHA256"
 
-    echo "Check Sha"
-    if ! echo "$SHA256  .repo.zip" | sha256sum -c - ; then
-        echo "Check of ${NAME} failed. Exiting." >&2
-        exit 1
-    fi
-
+    # Unpack it
     rm -rf .unpack
     unzip .repo.zip -d .unpack > /dev/null 2>&1
 
-    # Docker build
+    # The s2i build
     echo "Starting the docker build"
     # s2i build "https://github.com/${REPO}" "${TYPE}-s2i-builder" "$NAME:${COMMIT}"
-    s2i build "https://github.com/${REPO}" "${TYPE}-s2i-builder" "$NAME:${COMMIT}"
+    (cd .unpack/*/ && s2i build . "${TYPE}-s2i-builder" "$REGISTRY/$NAME:${COMMIT}")
 
-    docker push "$NAME:${COMMIT}"
+    test -n "$PUSH" && docker push "$REGISTRY/$NAME:${COMMIT}"
+
+    echo "Done $NAME."
 }
 
 
 
+
+generate_manifest () {
+    NAME="$1"
+    TYPE="$2"
+    COMMIT="$3"
+    REPO="$4"
+
+    DESCRIPTION="$(curl --silent "https://api.github.com/repos/$REPO" | jq -r .description)"
+    if [ "$DESCRIPTION" = null ]; then
+        DESCRIPTION="No Github description found."
+    fi
+
+    MAINTAINER="$(curl --silent "https://api.github.com/repos/$REPO" | jq -r .owner.login)"
+
+    helm template ./chart \
+        --set namespace=$NAMESPACE \
+        --set image.image="$REGISTRY/$NAME:$COMMIT" \
+        --set metadata.name="$NAME" \
+        --set metadata.maintainer="$MAINTAINER" \
+        --set metadata.description="$DESCRIPTION" > yaml/$NAME-manifest.yaml
+}
+
+
+# Clear the old yaml
+rm -rf yaml && mkdir -p yaml
 
 #############################
 ###   Loop through list   ###
@@ -95,6 +194,7 @@ while read line; do
     DOCKERFILE=$(get_dockerfile "$TYPE")
     [ $? = 0 ] || exit 1
 
-    validate_build_push $NAME $TYPE $COMMIT $REPO $SHA256
+    test -n "${BUILD}${PUSH}" && validate_build_push $NAME $TYPE $COMMIT $REPO $SHA256
+    test -n "$YAML"           && generate_manifest   $NAME $TYPE $COMMIT $REPO
 
 done < DASHBOARDS
