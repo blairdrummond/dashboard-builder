@@ -101,7 +101,7 @@ get_dockerfile () {
 
 
 
-validate_build_push () {
+validate_build () {
     NAME="$1"
     TYPE="$2"
     COMMIT="$3"
@@ -125,8 +125,6 @@ validate_build_push () {
     echo "Starting the docker build"
     # s2i build "https://github.com/${REPO}" "${TYPE}-s2i-builder" "$NAME:${COMMIT}"
     (cd .unpack/*/ && s2i build . "${TYPE}-s2i-builder" "$REGISTRY/$NAME:${COMMIT}")
-
-    test -n "$PUSH" && docker push "$REGISTRY/$NAME:${COMMIT}"
 
     echo "Done $NAME."
 }
@@ -186,7 +184,8 @@ while read line; do
     DOCKERFILE=$(get_dockerfile "$TYPE")
     [ $? = 0 ] || exit 1
 
-    test -n "${BUILD}${PUSH}" && validate_build_push $NAME $TYPE $COMMIT $REPO $SHA256
-    test -n "$YAML"           && generate_manifest   $NAME $TYPE $COMMIT $REPO
+    test -n "$BUILD" && validate_build $NAME $TYPE $COMMIT $REPO $SHA256
+    test -n "$PUSH"  && docker push "$REGISTRY/$NAME:${COMMIT}"
+    test -n "$YAML"  && generate_manifest   $NAME $TYPE $COMMIT $REPO
 
 done < DASHBOARDS
